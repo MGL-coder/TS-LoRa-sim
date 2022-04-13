@@ -28,7 +28,7 @@ iso_thresholds = np.array([IS7, IS8, IS9, IS10, IS11, IS12])
 
 # power consumptions for transmitting, receiving, and operating in mA
 pow_cons = [75, 45, 30]
-V = 3.0  # voltage XXX
+V = 3.3  # voltage XXX
 
 # global
 join_gateway = None
@@ -531,11 +531,11 @@ class Packet:
 		self.add_time = None
 
 	def energy_transmit(self):
-		return self.airtime() * (pow_cons[0] + pow_cons[2]) * V / 1e3
+		return self.airtime() * (pow_cons[0] + pow_cons[2]) * V / 1e6
 	
 	def energy_receive(self):
 		if self.is_received():
-			return (data_gateway.frame(self.sf).guard_time + self.airtime()) * (pow_cons[1] + pow_cons[2]) * V / 1e3 
+			return (data_gateway.frame(self.sf).guard_time + self.airtime()) * (pow_cons[1] + pow_cons[2]) * V / 1e6 
 		return 0
 
 	def dist(self, destination):
