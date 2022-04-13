@@ -26,11 +26,8 @@ IS11 = np.array([-22, -22, -21, -20, 1, -20])
 IS12 = np.array([-25, -25, -25, -24, -23, 1])
 iso_thresholds = np.array([IS7, IS8, IS9, IS10, IS11, IS12])
 
-# Transmit consumption in mA from -2 to +17 dBm
-TX = [22, 22, 22, 23,  # RFO/PA0: -2..1
-	  24, 24, 24, 25, 25, 25, 25, 26, 31, 32, 34, 35, 44,  # PA_BOOST/PA1: 2..14
-	  82, 85, 90,  # PA_BOOST/PA1: 15..17
-	  105, 115, 125]  # PA_BOOST/PA1+PA2: 18..20
+# power consumptions for transmitting, receiving, and operating in mA
+pow_cons = [75, 45, 30]
 V = 3.0  # voltage XXX
 
 # global
@@ -175,7 +172,7 @@ class Channels:
 
 	@classmethod
 	def get_sf_freq(cls, sf):
-		return cls.Channel[sf - 6]
+		return cls.Channel[sf-6]
 
 	@classmethod
 	def get_jr_freq(cls):
@@ -193,8 +190,8 @@ class Gateway(NetworkNode):
 	def __init__(self, node_id=None):
 		super().__init__(node_id)
 		self.x, self.y = bsx, bsy
-
-	@staticmethod
+	
+	@staticmethod		
 	def is_gateway():
 		return True
 
@@ -217,7 +214,7 @@ class JoinGateway(Gateway):
 			join_req.processed = False
 			log(env, f"gateway dropped join req from node {join_req.node.node_id}")
 			return
-
+		
 		log(env,
 			f'{f"gateway sent join accept to node {join_req.node.node_id}":<40}'
 			f'{f"SF: {acp_packet.sf} ":<10}'
@@ -243,11 +240,11 @@ class JoinGateway(Gateway):
 class DataGateway(Gateway):
 	def __init__(self, node_id):
 		super().__init__(node_id)
-		self.frames = [Frame(sf) for sf in range(7, 13)]
+		self.frames = [Frame(sf) for sf in range(7,13)]
 
 	def frame(self, sf):
 		if sf > 6:
-			return self.frames[sf - 7]
+			return self.frames[sf-7]
 		raise ValueError
 
 	def transmit_sack(self, env, sf):
@@ -533,12 +530,17 @@ class Packet:
 		self.sent = False
 		self.add_time = None
 
-	def energy_consumption(self):
-		return self.airtime() * TX[Ptx + 2] * V / 1e6
+	def energy_transmit(self):
+		self.receiver.frame.guard_time
+		return self.airtime() * (pow_cons[0] + pow_cons[2]) * V / 1e3
+	
+	def energy_receive(self):
+		if self.is_received():
+			return (self.receiver.frame.guard_time + self.airtime) * (pow_cons[1] + pow_cons[2]) * V / 1e3 
+		return 0
 
 	def dist(self, destination):
-		return np.sqrt((self.node.x - destination.x) * (self.node.x - destination.x) + (self.node.y - destination.y) * (
-					self.node.y - destination.y))
+		return np.sqrt((self.node.x - destination.x) * (self.node.x - destination.x) + (self.node.y - destination.y) * (self.node.y - destination.y))
 
 	# TODO: add variance, sigma so that 0.5% packets will be...
 	def rssi(self, destination):
@@ -558,15 +560,13 @@ class Packet:
 		Npream = 8  # number of preamble symbol (12.25  from Utz paper)
 
 		if self.bw == 125 and self.sf in [11, 12]:
-			DE = 1  # low data rate optimization mandated for BW125 with SF11 and SF12
+			DE = 1		# low data rate optimization mandated for BW125 with SF11 and SF12
 		if self.sf == 6:
-			H = 1  # can only have implicit header with SF6
+			H = 1		# can only have implicit header with SF6
 
 		Tsym = (2.0 ** self.sf) / self.bw
 		Tpream = (Npream + 4.25) * Tsym
-		payloadSymbNB = 8 + max(
-			math.ceil((8.0 * self.pl - 4.0 * self.sf + 28 + 16 - 20 * H) / (4.0 * (self.sf - 2 * DE))) * (self.cr + 4),
-			0)
+		payloadSymbNB = 8 + max(math.ceil((8.0 * self.pl - 4.0 * self.sf + 28 + 16 - 20 * H) / (4.0 * (self.sf - 2 * DE))) * (self.cr + 4), 0)
 		Tpayload = payloadSymbNB * Tsym
 		return Tpream + Tpayload
 
@@ -574,7 +574,7 @@ class Packet:
 		self.collided = False
 		self.processed = False
 		self.lost = False
-
+	
 	def update_statistics(self):
 		if self.lost:
 			global nr_lost
@@ -597,7 +597,7 @@ class Packet:
 			nr_packets_sent += 1
 
 		global total_energy
-		total_energy += self.energy_consumption()
+		total_energy += (self.energy_transmit() + self.energy_receive)
 
 	def is_received(self):
 		return not self.collided and self.processed and not self.lost
@@ -626,8 +626,8 @@ class Packet:
 						other.processed = False
 
 				if frequency_collision(self, other) and \
-						sf_collision(self, other) and \
-						timing_collision(self, other):
+					sf_collision(self, other) and \
+					timing_collision(self, other):
 
 					for p in power_collision(self, other):
 						p.collided = True
@@ -646,7 +646,7 @@ class DataPacket(Packet):
 		self.freq = Channels.get_sf_freq(sf)
 		self.pl = data_size
 		self.rec_time = self.airtime()
-
+	
 	def update_statistics(self):
 		super().update_statistics()
 		if self.sent:
@@ -666,9 +666,9 @@ class SackPacket(Packet):
 		self.sf = sf
 		self.bw = 125
 		self.freq = Channels.get_sf_freq(sf)
-		self.pl = int(4 + (nr_slots + 7) / 8)
+		self.pl = int(4 + (nr_slots+7)/8)
 		self.rec_time = self.airtime()
-
+		
 	def update_statistics(self):
 		super().update_statistics()
 		if self.sent:
@@ -690,7 +690,7 @@ class JoinRequest(Packet):
 		self.freq = Channels.get_jr_freq()
 		self.pl = 18
 		self.rec_time = self.airtime()
-
+		
 	def update_statistics(self):
 		super().update_statistics()
 
@@ -714,7 +714,7 @@ class JoinAccept(Packet):
 		self.freq = Channels.get_jr_freq()
 		self.pl = 12
 		self.rec_time = self.airtime()
-
+	
 	def update_statistics(self):
 		super().update_statistics()
 		if self.sent:
@@ -732,7 +732,7 @@ class Frame:
 
 		self.min_frame_length = 100 * self.data_p_rec_time
 		self.guard_time = 3 * 0.0001 * self.min_frame_length
-		self.min_nr_slots = int(self.min_frame_length / (self.data_p_rec_time + 2 * self.guard_time))
+		self.min_nr_slots = int(self.min_frame_length/(self.data_p_rec_time + 2 * self.guard_time))
 
 		self.nr_slots = self.min_nr_slots
 		self.nr_taken_slots = 0
@@ -753,8 +753,7 @@ class Frame:
 	def __update_fields(self):
 		self.sack_p_rec_time = SackPacket(self.nr_slots, self.sf)
 		if self.nr_taken_slots > self.min_nr_slots:
-			self.frame_length = (self.nr_slots * self.data_p_rec_time + self.sack_p_rec_time) / (
-						1.0 - 6 * 0.0001 * (self.nr_slots + 1))
+			self.frame_length = (self.nr_slots * self.data_p_rec_time + self.sack_p_rec_time)/(1.0 - 6 * 0.0001 * (self.nr_slots + 1))
 		self.guard_time = 3 * 0.0001 * self.frame_length
 		self.data_slot_len = self.data_p_rec_time + 2 * self.guard_time
 		self.sack_slot_len = self.sack_p_rec_time + 2 * self.guard_time
@@ -844,7 +843,7 @@ class BroadcastTraffic:
 
 
 def log(env, str):
-	print(f'{f"{env.now / 1000:.3f} s":<12} {str}')
+	print(f'{f"{env.now/1000:.3f} s":<12} {str}')
 
 
 def start_simulation():
@@ -868,12 +867,10 @@ def show_final_statistics():
 	print("Transmitted join accept packets:", nr_join_acp_sent)
 	print("Retransmissions:", nrRetransmission)
 	print("Join request packets dropped by gateway:", nr_join_req_dropped)
-	print(f"Average join time: {total_join_time * 0.001 / nr_joins:.3f} s")
+	print(f"Average join time: {total_join_time*0.001/nr_joins:.3f} s")
 	print(f"Total energy consumption: {total_energy:.3f} J")
-
-
-# to add average join time
-# to add power consumption
+	# to add average join time
+	# to add power consumption
 
 
 if __name__ == '__main__':
@@ -897,9 +894,9 @@ if __name__ == '__main__':
 		add_nodes(nodes_count)
 		if graphics:
 			plt.draw()
-			plt.show(block=True) \
- \
-					start_simulation()
+			plt.show(block=True)\
+
+		start_simulation()
 		show_final_statistics()
 	else:
 		print("usage: ./main <number_of_nodes> <data_size> <avg_wake_up_time> <sim_time>")
