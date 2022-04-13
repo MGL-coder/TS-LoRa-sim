@@ -531,12 +531,11 @@ class Packet:
 		self.add_time = None
 
 	def energy_transmit(self):
-		self.receiver.frame.guard_time
 		return self.airtime() * (pow_cons[0] + pow_cons[2]) * V / 1e3
 	
 	def energy_receive(self):
 		if self.is_received():
-			return (self.receiver.frame.guard_time + self.airtime) * (pow_cons[1] + pow_cons[2]) * V / 1e3 
+			return (data_gateway.frame(self.sf).guard_time + self.airtime()) * (pow_cons[1] + pow_cons[2]) * V / 1e3 
 		return 0
 
 	def dist(self, destination):
@@ -597,7 +596,7 @@ class Packet:
 			nr_packets_sent += 1
 
 		global total_energy
-		total_energy += (self.energy_transmit() + self.energy_receive)
+		total_energy += (self.energy_transmit() + self.energy_receive())
 
 	def is_received(self):
 		return not self.collided and self.processed and not self.lost
