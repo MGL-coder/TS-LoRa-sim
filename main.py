@@ -535,7 +535,7 @@ class Packet:
 	
 	def energy_receive(self):
 		if self.is_received():
-			return (data_gateway.frame(self.sf).guard_time + self.airtime()) * (pow_cons[1] + pow_cons[2]) * V / 1e6 
+			return (Frame(self.sf).guard_time + self.airtime()) * (pow_cons[1] + pow_cons[2]) * V / 1e6 
 		return 0
 
 	def dist(self, destination):
@@ -868,8 +868,8 @@ def show_final_statistics():
 	print("Join request packets dropped by gateway:", nr_join_req_dropped)
 	print(f"Average join time: {total_join_time*0.001/nr_joins:.3f} s")
 	print(f"Total energy consumption: {total_energy:.3f} J")
-	# to add average join time
-	# to add power consumption
+	print(f"Average energy consumption per node: {total_energy / nodes_count:.3f} J")
+	print(f"Number of nodes failed to connect to the network:", nodes_count - nr_joins)
 
 
 if __name__ == '__main__':
