@@ -858,6 +858,10 @@ def start_simulation():
 
 
 def show_final_statistics():
+	avr_join = 0
+	if nr_joins > 0:
+		avr_join = total_join_time*0.001/nr_joins
+		
 	print("Collisions:", nr_collisions)
 	print("Lost packets:", nr_lost)
 	print("Transmitted data packets:", nr_data_packets_sent)
@@ -868,7 +872,7 @@ def show_final_statistics():
 	print("Transmitted join accept packets:", nr_join_acp_sent)
 	print("Retransmissions:", nrRetransmission)
 	print("Join request packets dropped by gateway:", nr_join_req_dropped)
-	print(f"Average join time: {total_join_time*0.001/nr_joins:.3f} s")
+	print(f"Average join time: {avr_join:.3f} s")
 	print(f"Total energy consumption: {total_energy:.3f} J")
 	print(f"Average energy consumption per node: {total_energy / nodes_count:.3f} J")
 	print(f"Number of nodes failed to connect to the network:", nodes_count - nr_joins)
