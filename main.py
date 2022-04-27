@@ -89,7 +89,7 @@ send_sack = set()
 if graphics:
 	plt.xlim([0, x_max])
 	plt.ylim([0, y_max])
-	ax.add_artist(plt.Circle((bsx, bsy), 3, fill=True, color='green'))
+	ax.add_artist(plt.Circle((bsx, bsy), 8, fill=True, color='green'))
 	ax.add_artist(plt.Circle((bsx, bsy), max_dist, fill=False, color='green'))
 
 
@@ -370,7 +370,7 @@ class EndNode(NetworkNode):
 		global graphics
 		if graphics:
 			global ax
-			ax.add_artist(plt.Circle((self.x, self.y), 2, color='blue'))
+			ax.add_artist(plt.Circle((self.x, self.y), 4, color='blue'))
 
 	def find_optimal_sf(self):
 		for sf in range(7, 13):
@@ -861,7 +861,7 @@ def show_final_statistics():
 	avr_join = 0
 	if nr_joins > 0:
 		avr_join = total_join_time*0.001/nr_joins
-		
+
 	print("Collisions:", nr_collisions)
 	print("Lost packets:", nr_lost)
 	print("Transmitted data packets:", nr_data_packets_sent)
