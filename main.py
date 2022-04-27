@@ -535,6 +535,7 @@ class Packet:
 	
 	def energy_receive(self):
 		global join_gateway
+		global data_gateway
 		if self.is_received() and self.node != join_gateway and self.node != data_gateway:
 			return (self.node.guard_time + self.airtime()) * (pow_cons[1] + pow_cons[2]) * V / 1e6 
 		return 0
