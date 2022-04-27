@@ -687,7 +687,7 @@ class JoinRequest(Packet):
 		self.sf = 12
 		self.bw = 125
 		self.freq = Channels.get_jr_freq()
-		self.pl = 18
+		self.pl = 20
 		self.rec_time = self.airtime()
 		
 	def update_statistics(self):
