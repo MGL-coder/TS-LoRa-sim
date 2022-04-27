@@ -534,8 +534,9 @@ class Packet:
 		return self.airtime() * (pow_cons[0] + pow_cons[2]) * V / 1e6
 	
 	def energy_receive(self):
-		if self.is_received():
-			return (Frame(self.sf).guard_time + self.airtime()) * (pow_cons[1] + pow_cons[2]) * V / 1e6 
+		global join_gateway
+		if self.is_received() and self.node != join_gateway and self.node != data_gateway:
+			return (self.node.guard_time + self.airtime()) * (pow_cons[1] + pow_cons[2]) * V / 1e6 
 		return 0
 
 	def dist(self, destination):
