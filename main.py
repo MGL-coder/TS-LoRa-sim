@@ -1,3 +1,12 @@
+###########################################################
+# 	     Licensed Under GNU GPL version 2 		  #
+#							  #
+#  Parts have been borrowed from LoRaSIM and LoRa-FREE    #
+# https://www.lancaster.ac.uk/scc/sites/lora/lorasim.html #
+# 	   https://github.com/kqorany/FREE/		  #
+#							  #
+###########################################################
+
 import numpy as np
 import random
 import sys
@@ -421,8 +430,8 @@ class EndNode(NetworkNode):
 
 			req_packet.update_statistics()
 
-			# waiting time before retransmission = 4.5 s + random between 0 and 5 s
-			yield env.timeout(min_wait_time + (random.uniform(0.0, 5.0)) * 1000)
+			# waiting time before retransmission = 4.5 s + random between 0 and 25 s
+			yield env.timeout(min_wait_time + (random.uniform(0.0, 25.0)) * 1000)
 			req_packet = JoinRequest(self)
 			req_packet.add_time = env.now
 			self.join_retry_count += 1
@@ -438,7 +447,8 @@ class EndNode(NetworkNode):
 		while True:
 			# connecting to the gateway
 			if not self.connected and self.join_retry_count < retrans_count:
-				yield env.timeout(random.expovariate(1.0 / float(avg_wake_up_time)))  # wake up at random time
+				#yield env.timeout(random.expovariate(1.0 / float(avg_wake_up_time)))  # wake up at random time
+				yield env.timeout(random.uniform(0.0, float(2*avg_wake_up_time)))  # wake up at random time
 				yield env.process(self.join_req(env))
 				if not self.connected:
 					log(env, f"node {self.node_id} connection failed")
@@ -904,5 +914,5 @@ if __name__ == '__main__':
 		start_simulation()
 		show_final_statistics()
 	else:
-		print("usage: ./main <number_of_nodes> <data_size> <avg_wake_up_time> <sim_time>")
+		print("usage: ./main <number_of_nodes> <data_size(bytes)> <avg_wake_up_time(secs)> <sim_time(secs)>")
 		exit(-1)
