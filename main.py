@@ -875,8 +875,8 @@ def show_final_statistics():
 	print("Collisions:", nr_collisions)
 	print("Lost packets:", nr_lost)
 	print("Transmitted data packets:", nr_data_packets_sent)
-	for n in nodes:
-		print("\tNode", n.node_id, "sent", n.packets_sent_count, "packets")
+	#for n in nodes:
+	#	print("\tNode", n.node_id, "sent", n.packets_sent_count, "packets")
 	print("Transmitted SACK packets:", nr_sack_sent)
 	print("Transmitted join request packets:", nr_join_req_sent)
 	print("Transmitted join accept packets:", nr_join_acp_sent)
