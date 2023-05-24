@@ -376,8 +376,14 @@ class EndNode(NetworkNode):
 		found = False
 		rounds = 0
 		while not found and rounds < 100:
-			a = random.random()
-			b = random.random()
+			# a = random.random()
+			# b = random.random()
+			a = (index_val + 1) * 0.0765
+			b = (index_val + 1) * 0.0765
+			if (index_val == 5):
+				a = 0.63
+				b = 0.37
+
 			if b < a:
 				a, b = b, a
 			posx = b * max_dist * math.cos(2 * math.pi * a / b) + bsx
@@ -616,6 +622,7 @@ class Packet:
 		Tpream = (Npream + 4.25) * Tsym
 		payloadSymbNB = 8 + max(math.ceil((8.0 * self.pl - 4.0 * self.sf + 28 + 16 - 20 * H) / (4.0 * (self.sf - 2 * DE))) * (self.cr + 4), 0)
 		Tpayload = payloadSymbNB * Tsym
+
 		return Tpream + Tpayload
 
 	def reset(self):
@@ -984,10 +991,10 @@ def show_final_statistics():
 					  + f"Data Retransmissions: {nr_data_retransmissions}\n"
 					  + f"Join request packets dropped by gateway: {nr_join_req_dropped}\n"
 					  + f"Average join time: {avr_join:.3f} s\n"
-					  + f"Average energy consumption (Rx): {erx:.3f} J\n"
-					  + f"Average energy consumption (Tx): {etx:.3f} J\n"
+					  + f"Average energy consumption (Rx): {(erx / nodes_count):.3f} J\n"
+					  + f"Average energy consumption (Tx): {(etx / nodes_count):.3f} J\n"
 					  + f"Average energy consumption per node: {total_energy / nodes_count:.3f} J\n"
-					  + f"PRR: {(nr_data_packets_sent-nr_data_retransmissions)/nr_data_packets_sent:.3f}"
+					  + f"PRR: {(nr_data_packets_sent-nr_data_retransmissions)/nr_data_packets_sent:.3f} \n"
 					  + f"Number of nodes failed to connect to the network: {nodes_count - nr_joins}\n")
 
 
