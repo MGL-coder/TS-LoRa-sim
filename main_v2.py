@@ -21,7 +21,7 @@ graphics = True
 fig, ax = plt.subplots()
 
 # output file
-output_file = open("test.txt", "w")
+output_file = open("output.txt", "w")
 
 # Arrays of measured sensitivity values
 sf7 = np.array([7, -123.0, -120.0, -117.0])
@@ -113,6 +113,10 @@ y_max = bsy + max_dist + 10
 # send_sack = set()
 
 index_val = 0
+<<<<<<< HEAD
+=======
+match_with_experiment = False
+>>>>>>> 3dbe7d9 (fix: fixed the power received, conducted 10 experiments)
 
 # prepare graphics and draw base station
 if graphics:
@@ -130,8 +134,6 @@ def add_nodes(node_count):
 	print("Node initialization:")
 	for i in range(len(nodes), node_count + len(nodes)):
 		nodes.append(EndNode(i))
-	# hardcode notes for testing, 5 nodes sf - 7, 4 nodes sf - 8, 4 nodes sf - 9
-
 	print()
 
 
@@ -373,16 +375,49 @@ class EndNode(NetworkNode):
 	def find_place_for_new_node():
 		global nodes
 		global index_val
+		global match_with_experiment
 		found = False
 		rounds = 0
 		while not found and rounds < 100:
-			# a = random.random()
-			# b = random.random()
-			a = (index_val + 1) * 0.0765
-			b = (index_val + 1) * 0.0765
-			if (index_val == 5):
-				a = 0.63
-				b = 0.37
+			a = random.random()
+			b = random.random()
+			# set this value to false if you want to run the simulation with random node placement
+			if (match_with_experiment):
+				a = (index_val + 1) * 0.0765
+				b = (index_val + 1) * 0.0765
+				if (index_val == 0):
+					a = 0.1
+					b = 0.3
+				if (index_val == 1):
+					a = 0.2
+					b = 0.15
+				if (index_val == 2):
+					a = 0.32
+					b = 0.23
+				if (index_val == 3):
+					a = 0.45
+					b = 0.25
+				if (index_val == 4):
+					a = 0.22
+					b = 0.13
+				if (index_val == 5):
+					a = 0.63
+					b = 0.37
+				if (index_val == 6):
+					a = 0.72
+					b = 0.43
+				if (index_val == 7):
+					a = 0.40
+					b = 0.62
+				if (index_val == 8):
+					a = 0.6
+					b = 0.6
+				if (index_val == 9):
+					a = 0.1
+					b = 0.9
+				if (index_val == 10):
+					a = 0.81
+					b = 0.92
 
 			if b < a:
 				a, b = b, a
@@ -588,8 +623,8 @@ class Packet:
 	def energy_receive(self):
 		global join_gateway
 		global data_gateway
-		if self.is_received() and self.node != join_gateway and self.node != data_gateway:
-			return (self.node.guard_time + self.airtime()) * (pow_cons[1] + pow_cons[2]) * V / 1e6 
+		if self.node != join_gateway and self.node != data_gateway:
+			return (50 + self.airtime()) * (pow_cons[1] + pow_cons[2]) * V / 1e6
 		return 0
 
 	def dist(self, destination):
@@ -622,7 +657,6 @@ class Packet:
 		Tpream = (Npream + 4.25) * Tsym
 		payloadSymbNB = 8 + max(math.ceil((8.0 * self.pl - 4.0 * self.sf + 28 + 16 - 20 * H) / (4.0 * (self.sf - 2 * DE))) * (self.cr + 4), 0)
 		Tpayload = payloadSymbNB * Tsym
-
 		return Tpream + Tpayload
 
 	def reset(self):
@@ -856,7 +890,6 @@ class Frame:
 				# generate drifting time for the current slot if it hasn't been generated before
 				if i not in drifting_times:
 					drifting_times[i] = gauss(0, 0.5)
-					# drifting_times[i] = random.uniform(-10, 10)
 
 				df = drifting_times[i]
 				start_time_n = env.now + self.data_slot_len * i + df + self.guard_time
@@ -865,7 +898,6 @@ class Frame:
 				# generate drifting time for the previous slot if it hasn't been generated before
 				if i - 1 not in drifting_times:
 					drifting_times[i - 1] = gauss(0, 0.5)
-					# drifting_times[i-1] = random.uniform(-10, 10)
 
 				df_prev = drifting_times[i - 1]
 				start_time_prev = env.now + self.data_slot_len * (i - 1) + df_prev + self.guard_time
