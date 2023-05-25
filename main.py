@@ -17,6 +17,9 @@ import simpy as simpy
 graphics = True
 fig, ax = plt.subplots()
 
+# output file
+output_file = open("results/test.txt", "w")
+
 # Arrays of measured sensitivity values
 sf7 = np.array([7, -123, -120, -117.0])
 sf8 = np.array([8, -126, -123, -120.0])
@@ -48,9 +51,14 @@ join_request_at_bs = []
 env = simpy.Environment()
 
 coding_rate = 1
+drifting_range = [-0.2, 0.2]
+mean = 0  # Mean of the normal distribution
+std_dev = 0.0001  # Standard deviation of the normal distribution
 
 # Statistics
 nr_collisions = 0
+nr_join_collisions = 0
+nr_data_collisions = 0
 nr_received = 0
 nr_processed = 0
 nr_lost = 0
@@ -83,7 +91,8 @@ sigma = 0.38795
 min_wait_time = 4.5
 
 # max distance between nodes and base station
-max_dist = 400
+# max_dist = 400
+max_dist = 225
 
 # base station position
 bsx = max_dist + 10
@@ -91,8 +100,8 @@ bsy = max_dist + 10
 x_max = bsx + max_dist + 10
 y_max = bsy + max_dist + 10
 
-send_req = set()
-send_sack = set()
+# send_req = set()
+# send_sack = set()
 
 # prepare graphics and draw base station
 if graphics:
@@ -104,8 +113,9 @@ if graphics:
 
 def add_nodes(node_count):
 	global nodes
-	global join_gateway
+	# global join_gateway
 	print()
+	output_file.write("\nNode initialization:\n")
 	print("Node initialization:")
 	for i in range(len(nodes), node_count + len(nodes)):
 		nodes.append(EndNode(i))
@@ -199,8 +209,8 @@ class Gateway(NetworkNode):
 	def __init__(self, node_id=None):
 		super().__init__(node_id)
 		self.x, self.y = bsx, bsy
-	
-	@staticmethod		
+
+	@staticmethod
 	def is_gateway():
 		return True
 
@@ -213,7 +223,7 @@ class JoinGateway(Gateway):
 		super().__init__(node_id)
 
 	def join_acp(self, join_req, env):
-		global send_req
+		# global send_req
 		yield env.timeout(1000)
 		acp_packet = JoinAccept(self, join_req.node)
 		acp_packet.add_time = env.now
@@ -223,7 +233,7 @@ class JoinGateway(Gateway):
 			join_req.processed = False
 			log(env, f"gateway dropped join req from node {join_req.node.node_id}")
 			return
-		
+
 		log(env,
 			f'{f"gateway sent join accept to node {join_req.node.node_id}":<40}'
 			f'{f"SF: {acp_packet.sf} ":<10}'
@@ -235,7 +245,6 @@ class JoinGateway(Gateway):
 
 		acp_packet.check_collision()
 		yield BroadcastTraffic.add_and_wait(env, acp_packet)
-		acp_packet.update_statistics()
 		if acp_packet.is_received():
 			join_req.node.accept_received = True
 			global nr_joins
@@ -249,7 +258,7 @@ class JoinGateway(Gateway):
 class DataGateway(Gateway):
 	def __init__(self, node_id):
 		super().__init__(node_id)
-		self.frames = [Frame(sf) for sf in range(7,13)]
+		self.frames = [Frame(sf) for sf in range(7,10)]
 
 	def frame(self, sf):
 		if sf > 6:
@@ -309,7 +318,6 @@ class DataGateway(Gateway):
 class EndNode(NetworkNode):
 	def __init__(self, node_id):
 		super().__init__(node_id)
-
 		self.join_retry_count = 0
 		self.missed_sack_count = 0
 		self.packets_sent_count = 0
@@ -322,7 +330,7 @@ class EndNode(NetworkNode):
 		self.round_end_time = 0
 
 		self.slot = None
-		self.guard_time = 0
+		self.guard_time = 2
 		self.frame_length = 0
 		self.network_size = 0
 
@@ -335,8 +343,9 @@ class EndNode(NetworkNode):
 		self.sf = self.find_optimal_sf()
 
 		print(f"node {self.node_id}: \t x {self.x:3f} \t y {self.y:3f} \t dist {self.dist:4.3f} \t SF {self.sf}")
-
+		output_file.write(f"node {self.node_id}: \t x {self.x:3f} \t y {self.y:3f} \t dist {self.dist:4.3f} \t SF {self.sf}\n")
 		self.draw()
+
 
 	def __str__(self):
 		return f"node {self.node_id}"
@@ -382,11 +391,12 @@ class EndNode(NetworkNode):
 			ax.add_artist(plt.Circle((self.x, self.y), 4, color='blue'))
 
 	def find_optimal_sf(self):
-		for sf in range(7, 13):
+		for sf in range(7, 10):
 			data_packet = DataPacket(sf, self)
 			if data_packet.rssi(data_gateway) > get_sensitivity(sf, data_packet.bw):
 				return sf
 		print(f"WARNING: {self} cannot reach gateway!")
+		output_file.write(f"WARNING: {self} cannot reach gateway!\n")
 		return None
 
 	def join_req(self, env):
@@ -492,8 +502,6 @@ class EndNode(NetworkNode):
 				send_time = send_time + random.gauss(0, sigma) * self.guard_time
 			yield env.timeout(send_time)
 
-			# time sending and receiving
-			# packet arrives -> add to base station
 
 			data_packet = DataPacket(self.sf, self)
 			data_packet.add_time = env.now
@@ -542,12 +550,12 @@ class Packet:
 
 	def energy_transmit(self):
 		return self.airtime() * (pow_cons[0] + pow_cons[2]) * V / 1e6
-	
+
 	def energy_receive(self):
 		global join_gateway
 		global data_gateway
 		if self.is_received() and self.node != join_gateway and self.node != data_gateway:
-			return (self.node.guard_time + self.airtime()) * (pow_cons[1] + pow_cons[2]) * V / 1e6 
+			return (self.node.guard_time + self.airtime()) * (pow_cons[1] + pow_cons[2]) * V / 1e6
 		return 0
 
 	def dist(self, destination):
@@ -585,7 +593,7 @@ class Packet:
 		self.collided = False
 		self.processed = False
 		self.lost = False
-	
+
 	def update_statistics(self):
 		if self.lost:
 			global nr_lost
@@ -616,6 +624,7 @@ class Packet:
 	def was_sent_to(self, node):
 		return self.receiver is node
 
+
 	def check_collision(self):
 		self.processed = True
 		if BroadcastTraffic.nr_data_packets > max_packets:
@@ -639,7 +648,6 @@ class Packet:
 				if frequency_collision(self, other) and \
 					sf_collision(self, other) and \
 					timing_collision(self, other):
-
 					for p in power_collision(self, other):
 						p.collided = True
 						if p == self:
@@ -652,12 +660,14 @@ class Packet:
 class DataPacket(Packet):
 	def __init__(self, sf=None, node=None):
 		super().__init__(node, data_gateway)
+		if sf not in [7, 8, 9]:
+			sf = random.choice([7, 8, 9])
 		self.sf = sf
 		self.bw = 125
 		self.freq = Channels.get_sf_freq(sf)
 		self.pl = data_size
 		self.rec_time = self.airtime()
-	
+
 	def update_statistics(self):
 		super().update_statistics()
 		if self.sent:
@@ -679,7 +689,7 @@ class SackPacket(Packet):
 		self.freq = Channels.get_sf_freq(sf)
 		self.pl = int(4 + (nr_slots+7)/8)
 		self.rec_time = self.airtime()
-		
+
 	def update_statistics(self):
 		super().update_statistics()
 		if self.sent:
@@ -701,7 +711,7 @@ class JoinRequest(Packet):
 		self.freq = Channels.get_jr_freq()
 		self.pl = 20
 		self.rec_time = self.airtime()
-		
+
 	def update_statistics(self):
 		super().update_statistics()
 
@@ -725,7 +735,7 @@ class JoinAccept(Packet):
 		self.freq = Channels.get_jr_freq()
 		self.pl = 12
 		self.rec_time = self.airtime()
-	
+
 	def update_statistics(self):
 		super().update_statistics()
 		if self.sent:
@@ -742,7 +752,8 @@ class Frame:
 		self.data_p_rec_time = DataPacket(sf).rec_time
 
 		self.min_frame_length = 100 * self.data_p_rec_time
-		self.guard_time = 3 * 0.0001 * self.min_frame_length
+		# self.guard_time = 3 * 0.0001 * self.min_frame_length
+		self.guard_time = 2 # 2ms
 		self.min_nr_slots = int(self.min_frame_length/(self.data_p_rec_time + 2 * self.guard_time))
 
 		self.nr_slots = self.min_nr_slots
@@ -760,6 +771,7 @@ class Frame:
 		self.next_round_start_time = self.trans_time + self.trans_time_period + 1
 
 		self.slots = [None for _ in range(self.nr_slots)]
+
 
 	def __update_fields(self):
 		self.sack_p_rec_time = SackPacket(self.nr_slots, self.sf)
@@ -854,16 +866,19 @@ class BroadcastTraffic:
 
 
 def log(env, str):
+	output_file.write(f'{f"{env.now/1000:.3f} s":<12} {str}\n')
 	print(f'{f"{env.now/1000:.3f} s":<12} {str}')
 
 
 def start_simulation():
 	for n in nodes:
 		env.process(n.transmit(env))
-	for sf in range(7, 13):
+	for sf in range(7, 10):
 		env.process(data_gateway.transmit_sack(env, sf))
+	output_file.write("Simulation start\n")
 	print("Simulation start")
 	env.run(until=sim_time)
+	output_file.write("Simulation finished\n")
 	print("Simulation finished\n")
 
 
@@ -873,6 +888,7 @@ def show_final_statistics():
 		avr_join = total_join_time*0.001/nr_joins
 
 	print("Collisions:", nr_collisions)
+	print("Data collisions:", nr_data_collisions)
 	print("Lost packets:", nr_lost)
 	print("Transmitted data packets:", nr_data_packets_sent)
 	#for n in nodes:
@@ -886,6 +902,20 @@ def show_final_statistics():
 	print(f"Total energy consumption: {total_energy:.3f} J")
 	print(f"Average energy consumption per node: {total_energy / nodes_count:.3f} J")
 	print(f"Number of nodes failed to connect to the network:", nodes_count - nr_joins)
+
+	output_file.write("Collisions: " + str(nr_collisions) + "\n"
+					  + "Join collisions: " + str(nr_join_collisions) + "\n"
+					  + "Lost packets: " + str(nr_lost) + "\n"
+					  + "Transmitted data packets: " + str(nr_data_packets_sent) + "\n"
+					  + "Transmitted SACK packets: " + str(nr_sack_sent) + "\n"
+					  + "Transmitted join request packets: " + str(nr_join_req_sent) + "\n"
+					  + "Transmitted join accept packets: " + str(nr_join_acp_sent) + "\n"
+					  + "Retransmissions: " + str(nrRetransmission) + "\n"
+					  + "Join request packets dropped by gateway: " + str(nr_join_req_dropped) + "\n"
+					  + "Average join time: " + str(avr_join) + " s\n"
+					  + "Total energy consumption: " + str(total_energy) + " J\n"
+					  + "Average energy consumption per node: " + str(total_energy / nodes_count) + " J\n"
+					  + "Number of nodes failed to connect to the network: " + str(nodes_count - nr_joins) + "\n")
 
 
 if __name__ == '__main__':
@@ -901,6 +931,12 @@ if __name__ == '__main__':
 		print("Average wake up time of nodes (exp. distributed):", avg_wake_up_time, "seconds")
 		print("Simulation time:", sim_time, "seconds")
 
+		output_file.write("Nodes: " + str(nodes_count) + "\n"
+						  + "Data size: " + str(data_size) + " bytes\n"
+						  + "Average wake up time of nodes (exp. distributed): " + str(avg_wake_up_time) + " seconds\n"
+						  + "Simulation time: " + str(sim_time) + " seconds\n\n")
+
+
 		avg_wake_up_time *= 1000
 		sim_time *= 1000
 
@@ -909,7 +945,7 @@ if __name__ == '__main__':
 		add_nodes(nodes_count)
 		if graphics:
 			plt.draw()
-			plt.show(block=True)\
+			plt.show(block=True)
 
 		start_simulation()
 		show_final_statistics()

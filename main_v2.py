@@ -113,10 +113,7 @@ y_max = bsy + max_dist + 10
 # send_sack = set()
 
 index_val = 0
-<<<<<<< HEAD
-=======
 match_with_experiment = False
->>>>>>> 3dbe7d9 (fix: fixed the power received, conducted 10 experiments)
 
 # prepare graphics and draw base station
 if graphics:
@@ -623,7 +620,7 @@ class Packet:
 	def energy_receive(self):
 		global join_gateway
 		global data_gateway
-		if self.node != join_gateway and self.node != data_gateway:
+		if self.is_received():
 			return (50 + self.airtime()) * (pow_cons[1] + pow_cons[2]) * V / 1e6
 		return 0
 
